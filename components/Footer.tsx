@@ -1,33 +1,4 @@
 export default function Footer() {
-  const languages = [
-    "English",
-    "Deutsch",
-    "Polski",
-    "Français",
-    "Español",
-    "Ελληνικά",
-    "Latvian",
-    "Lithuanian",
-    "Nederlands",
-    "简体中文",
-    "Italiano",
-    "Svenska",
-    "Slovenský",
-    "Português",
-    "Slovenščina",
-    "Русский",
-    "Dansk",
-    "Suomi",
-    "Български",
-    "Čeština",
-    "Eestlane",
-    "Magyar",
-    "Română",
-    "日本語",
-    "한국어",
-    "Bahasa Indonesia",
-  ]
-
   return (
     <footer className="bg-gray-900 text-white py-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,7 +10,7 @@ export default function Footer() {
             <span className="text-xl font-bold">mvloader</span>
           </div>
 
-          <p className="text-sm text-gray-400">Copyright © 2022 All Rights Reserved</p>
+          <p className="text-sm text-gray-400">Copyright © 2025 mvloader All Rights Reserved</p>
         </div>
       </div>
     </footer>

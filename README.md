@@ -1,30 +1,121 @@
-# Next js app build
+# mvloader - YouTube Music/Video Downloader
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+A modern, fast, and user-friendly YouTube music/video downloader built with Next.js. Convert and download YouTube videos to MP3 or MP4 format with just a few clicks.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/anars-projects-098a51c8/v0-next-js-app-build)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/DJZ5NRXw8CT)
+[![Next.js](https://img.shields.io/badge/Next.js-15.2.4-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-blue?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 
-## Overview
+## Features
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+- 🎵 Convert YouTube videos to MP3 or MP4
+- 🚀 Fast conversion and download speeds
+- 💻 No software installation required
+- 🌐 Support for multiple languages
+- 🌙 Dark/Light theme support
+- 📱 Fully responsive design
+- 🔒 Secure and private - no personal information required
+- 💯 100% free to use
 
-## Deployment
+## Getting Started
 
-Your project is live at:
+### Prerequisites
 
-**[https://vercel.com/anars-projects-098a51c8/v0-next-js-app-build](https://vercel.com/anars-projects-098a51c8/v0-next-js-app-build)**
+- Node.js (v18 or higher)
+- pnpm (recommended) or npm
 
-## Build your app
+### Installation
 
-Continue building your app on:
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/mvloader.git
+cd mvloader
+```
 
-**[https://v0.dev/chat/projects/DJZ5NRXw8CT](https://v0.dev/chat/projects/DJZ5NRXw8CT)**
+2. Install dependencies:
+```bash
+pnpm install
+```
 
-## How It Works
+3. Run the development server:
+```bash
+pnpm dev
+```
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Building for Production
+
+```bash
+pnpm build
+pnpm start
+```
+
+## Tech Stack
+
+- **Framework**: Next.js 15.2.4
+- **Language**: TypeScript
+- **Styling**: TailwindCSS
+- **UI Components**: 
+  - Radix UI
+  - Lucide Icons
+  - shadcn/ui components
+- **Form Handling**: React Hook Form
+- **State Management**: React Hooks
+- **Theme**: next-themes
+- **Validation**: Zod
+
+## Project Structure
+
+```
+mvloader/
+├── app/                # Next.js app directory
+│   ├── about/         # About page
+│   ├── faq/           # FAQ page
+│   ├── features/      # Features page
+│   └── layout.tsx     # Root layout
+├── components/        # React components
+│   ├── ui/           # UI components
+│   └── ...           # Feature components
+├── hooks/            # Custom React hooks
+├── lib/              # Utility functions
+├── public/           # Static assets
+└── styles/           # Global styles
+```
+
+## Features in Detail
+
+1. **Video Download**
+   - Support for YouTube URLs
+   - Multiple format options (MP3, MP4)
+   - Real-time URL validation
+   - Progress tracking
+
+2. **User Interface**
+   - Clean and modern design
+   - Responsive layout
+   - Dark/Light theme toggle
+   - Mobile-friendly navigation
+
+3. **Internationalization**
+   - Support for 26+ languages
+   - Easy language switching
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support, please visit our [FAQ page](/faq) or open an issue in the repository.
+
+## Acknowledgments
+
+- Built with [Next.js](https://nextjs.org/)
+- UI components from [shadcn/ui](https://ui.shadcn.com/)
+- Icons by [Lucide](https://lucide.dev/)

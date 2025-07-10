@@ -13,10 +13,7 @@ export default function Hero() {
   const [selectedFormat, setSelectedFormat] = useState("MP3")
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
-  const formatOptions = [
-    { value: "MP3", label: "MP3" },
-    { value: "MP4", label: "MP4" }, // MP4 is already here!
-  ]
+  const formatOptions = ["MP3", "MP4"]  // Simple format options array
 
   // Validate YouTube URL
   const validateYouTubeUrl = (url: string) => {
@@ -54,11 +51,13 @@ export default function Hero() {
   }
 
   const handleFormatSelect = (format: string) => {
+    console.log('Selecting format:', format)
     setSelectedFormat(format)
     setIsDropdownOpen(false)
   }
 
   const toggleDropdown = () => {
+    console.log('Toggle dropdown, current state:', isDropdownOpen)
     setIsDropdownOpen(!isDropdownOpen)
   }
 
@@ -109,9 +108,9 @@ export default function Hero() {
         </p>
 
         {/* Download form */}
-        <div className="mb-8 flex flex-col items-center">
+        <div className="mb-8 flex flex-col items-center relative">
           <div
-            className={`format-input-group flex w-full max-w-2xl items-stretch overflow-hidden rounded-2xl border-2 bg-white dark:bg-gray-700 shadow-lg transition-colors
+            className={`format-input-group flex w-full max-w-2xl items-stretch rounded-2xl border-2 bg-white dark:bg-gray-700 shadow-lg transition-colors
               ${
                 error && url.trim() !== ""
                   ? "border-red-300 dark:border-red-600 focus-within:border-red-500 dark:focus-within:border-red-400"
@@ -126,7 +125,7 @@ export default function Hero() {
               <button
                 type="button"
                 onClick={toggleDropdown}
-                className="flex h-16 items-center px-4 py-3 border-r border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                className="flex h-16 items-center px-4 py-3 border-r border-gray-200 dark:border-gray-600 transition-colors"
               >
                 <span className="text-base font-medium text-gray-700 dark:text-gray-300 mr-2 min-w-[40px]">
                   {selectedFormat}
@@ -138,20 +137,23 @@ export default function Hero() {
 
               {/* Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-10 min-w-[80px]">
-                  {formatOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleFormatSelect(option.value)}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors ${
-                        selectedFormat === option.value
-                          ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300"
-                          : "text-gray-700 dark:text-gray-300"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50 min-w-[100px] overflow-hidden">
+                  <div className="py-1">
+                    {formatOptions.map((format) => (
+                      <button
+                        key={format}
+                        type="button"
+                        onClick={() => handleFormatSelect(format)}
+                        className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                          selectedFormat === format
+                            ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300"
+                            : "text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        {format}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -175,7 +177,7 @@ export default function Hero() {
                   : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
               }`}
             >
-              Download
+              DOWNLOAD
             </Button>
           </div>
 

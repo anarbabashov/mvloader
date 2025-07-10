@@ -29,7 +29,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-8">
+          {/* <nav className="hidden lg:flex items-center space-x-8">
             {navItems.map((item, index) => (
               <Link
                 key={index}
@@ -39,7 +39,7 @@ export default function Header() {
                 {item.name}
               </Link>
             ))}
-          </nav>
+          </nav> */}
 
           {/* Dark Mode Toggle & Mobile Menu */}
           <div className="flex items-center space-x-4">
@@ -66,7 +66,7 @@ export default function Header() {
         </div>
 
         {/* Mobile Navigation */}
-        {isMenuOpen && (
+        {/* {isMenuOpen && (
           <div className="lg:hidden py-4 border-t border-gray-200 dark:border-gray-700">
             <nav className="flex flex-col space-y-3">
               {navItems.map((item, index) => (
@@ -80,7 +80,7 @@ export default function Header() {
               ))}
             </nav>
           </div>
-        )}
+        )} */}
       </div>
     </header>
   )

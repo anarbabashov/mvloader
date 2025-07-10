@@ -4,10 +4,12 @@ import Footer from "@/components/Footer"
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <Header />
-      <Hero />
+      <main className="flex-1">
+        <Hero />
+      </main>
       <Footer />
-    </main>
+    </div>
   )
 }
