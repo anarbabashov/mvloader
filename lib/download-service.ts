@@ -1,0 +1,216 @@
+import ytdl from '@distube/ytdl-core'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+
+// Try to set up FFmpeg, but continue without it if it fails
+let ffmpegAvailable = false
+try {
+  const ffmpeg = require('fluent-ffmpeg')
+  // Try system FFmpeg first
+  ffmpeg.setFfmpegPath('ffmpeg')
+  ffmpegAvailable = true
+} catch (error) {
+  console.warn('FFmpeg not available, will download audio in original format')
+}
+
+// Get user's Downloads folder
+const getDownloadsPath = () => {
+  const homeDir = os.homedir()
+  return path.join(homeDir, 'Downloads')
+}
+
+// Progress tracking
+interface DownloadProgress {
+  downloadId: string
+  progress: number
+  status: 'downloading' | 'converting' | 'completed' | 'error'
+  filename?: string
+  error?: string
+}
+
+const progressMap = new Map<string, DownloadProgress>()
+
+export function getDownloadProgress(downloadId: string): DownloadProgress {
+  return progressMap.get(downloadId) || {
+    downloadId,
+    progress: 0,
+    status: 'error',
+    error: 'Download not found'
+  }
+}
+
+export async function downloadAudio(url: string, downloadId: string): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Set initial progress IMMEDIATELY
+      progressMap.set(downloadId, { downloadId, progress: 0, status: 'downloading' })
+
+      const info = await ytdl.getInfo(url, {
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        }
+      })
+      
+      const title = info.videoDetails.title.replace(/[^a-zA-Z0-9\s]/g, '_').trim()
+      
+      // If FFmpeg is available, use conversion; otherwise download directly as MP3-named file
+      const finalAudioPath = path.join(getDownloadsPath(), `${title}.mp3`)
+      const tempAudioPath = ffmpegAvailable 
+        ? path.join(getDownloadsPath(), `${title}_temp.m4a`)
+        : finalAudioPath
+
+      const audioStream = ytdl(url, { 
+        quality: 'highestaudio',
+        filter: 'audioonly',
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        }
+      })
+
+      audioStream.on('progress', (chunkLength, downloaded, total) => {
+        const percent = ffmpegAvailable 
+          ? Math.round((downloaded / total) * 50) // 50% for download if converting
+          : Math.round((downloaded / total) * 100) // 100% if no conversion
+        progressMap.set(downloadId, { downloadId, progress: percent, status: 'downloading' })
+      })
+
+      audioStream.on('error', (error) => {
+        progressMap.set(downloadId, { downloadId, progress: 0, status: 'error', error: error.message })
+        reject(error)
+      })
+
+      const writeStream = fs.createWriteStream(tempAudioPath)
+      audioStream.pipe(writeStream)
+
+      writeStream.on('finish', () => {
+        if (ffmpegAvailable) {
+          // Convert to MP3 using FFmpeg
+          progressMap.set(downloadId, { downloadId, progress: 50, status: 'converting' })
+          
+          const ffmpeg = require('fluent-ffmpeg')
+          ffmpeg(tempAudioPath)
+            .audioCodec('libmp3lame')
+            .audioBitrate(320)
+            .format('mp3')
+            .on('progress', (progress: { percent?: number }) => {
+              const percent = Math.round(50 + (progress.percent || 0) * 0.5)
+              progressMap.set(downloadId, { downloadId, progress: percent, status: 'converting' })
+            })
+            .on('end', () => {
+              fs.unlinkSync(tempAudioPath)
+              progressMap.set(downloadId, { 
+                downloadId, 
+                progress: 100, 
+                status: 'completed', 
+                filename: `${title}.mp3` 
+              })
+              resolve(finalAudioPath)
+            })
+            .on('error', (error: Error) => {
+              console.error('FFmpeg conversion error:', error)
+              progressMap.set(downloadId, { 
+                downloadId, 
+                progress: 0, 
+                status: 'error', 
+                error: `Conversion failed: ${error.message}` 
+              })
+              reject(error)
+            })
+            .save(finalAudioPath)
+        } else {
+          // No FFmpeg available, file is already saved with .mp3 extension
+          progressMap.set(downloadId, { 
+            downloadId, 
+            progress: 100, 
+            status: 'completed', 
+            filename: `${title}.mp3` 
+          })
+          resolve(finalAudioPath)
+        }
+      })
+
+      writeStream.on('error', (error) => {
+        progressMap.set(downloadId, { downloadId, progress: 0, status: 'error', error: error.message })
+        reject(error)
+      })
+    } catch (error) {
+      progressMap.set(downloadId, { 
+        downloadId, 
+        progress: 0, 
+        status: 'error', 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      })
+      reject(error)
+    }
+  })
+}
+
+export async function downloadVideo(url: string, downloadId: string): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      progressMap.set(downloadId, { downloadId, progress: 0, status: 'downloading' })
+
+      const info = await ytdl.getInfo(url, {
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        }
+      })
+      
+      const title = info.videoDetails.title.replace(/[^a-zA-Z0-9\s]/g, '_').trim()
+      const finalVideoPath = path.join(getDownloadsPath(), `${title}.mp4`)
+
+      const videoStream = ytdl(url, { 
+        quality: 'highest',
+        filter: 'videoandaudio',
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        }
+      })
+
+      videoStream.on('progress', (chunkLength, downloaded, total) => {
+        const percent = Math.round((downloaded / total) * 100)
+        progressMap.set(downloadId, { downloadId, progress: percent, status: 'downloading' })
+      })
+
+      videoStream.on('error', (error) => {
+        progressMap.set(downloadId, { downloadId, progress: 0, status: 'error', error: error.message })
+        reject(error)
+      })
+
+      const writeStream = fs.createWriteStream(finalVideoPath)
+      videoStream.pipe(writeStream)
+
+      writeStream.on('finish', () => {
+        progressMap.set(downloadId, { 
+          downloadId, 
+          progress: 100, 
+          status: 'completed', 
+          filename: `${title}.mp4` 
+        })
+        resolve(finalVideoPath)
+      })
+
+      writeStream.on('error', (error) => {
+        progressMap.set(downloadId, { downloadId, progress: 0, status: 'error', error: error.message })
+        reject(error)
+      })
+    } catch (error) {
+      progressMap.set(downloadId, { 
+        downloadId, 
+        progress: 0, 
+        status: 'error', 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      })
+      reject(error)
+    }
+  })
+} 
