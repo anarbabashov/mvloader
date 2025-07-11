@@ -10,7 +10,7 @@ export default function Footer() {
             <span className="text-xl font-bold">mvloader</span>
           </div>
 
-          <p className="text-sm text-gray-400">Copyright © 2025 mvloader All Rights Reserved</p>
+          <p className="text-sm text-gray-400">Copyright © 2025 All Rights Reserved</p>
         </div>
       </div>
     </footer>
