@@ -7,11 +7,10 @@ import { ThemeProvider } from "@/components/ThemeProvider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "mvloader - YouTube to MP3 Converter",
+  title: "MVLoader - YouTube High-quality audio and video downloader.",
   description:
-    "Convert YouTube videos to MP3 quickly and easily with our free online tool. High-quality audio downloads.",
-  keywords: "YouTube to MP3, audio converter, MP3 downloader, online tool",
-    generator: 'v0.dev'
+    "Downloader YouTube music and videos free online tool.",
+  keywords: "YouTube to MP3, YouTube to MP4, audio converter, MP3 downloader, online tool"
 }
 
 export default function RootLayout({
