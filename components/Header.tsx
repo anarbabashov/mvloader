@@ -28,7 +28,7 @@ export default function Header() {
             <span className="text-xl font-bold text-gray-900 dark:text-white">mvloader</span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Hidden for now */}
           {/* <nav className="hidden lg:flex items-center space-x-8">
             {navItems.map((item, index) => (
               <Link
@@ -41,31 +41,31 @@ export default function Header() {
             ))}
           </nav> */}
 
-          {/* Dark Mode Toggle & Mobile Menu */}
-          <div className="flex items-center space-x-4">
+          {/* Dark Mode Toggle */}
+          <div className="flex items-center">
             <Button
               variant="outline"
               size="sm"
               onClick={toggleTheme}
-              className="hidden sm:flex items-center space-x-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-transparent"
+              className="flex items-center space-x-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-transparent"
             >
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              <span>{theme === "dark" ? "Light" : "Dark"}</span>
+              <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
             </Button>
 
-            {/* Mobile menu button */}
-            <Button
+            {/* Mobile menu button - Hidden for now */}
+            {/* <Button
               variant="ghost"
               size="sm"
               className="lg:hidden text-gray-700 dark:text-gray-300"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
+            </Button> */}
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Hidden for now */}
         {/* {isMenuOpen && (
           <div className="lg:hidden py-4 border-t border-gray-200 dark:border-gray-700">
             <nav className="flex flex-col space-y-3">

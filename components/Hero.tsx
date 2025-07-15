@@ -115,7 +115,7 @@ export function Hero() {
 
 				{/* Main heading */}
 				<h1 className="text-4xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-					YouTube Video <span className="underline decoration-blue-500 decoration-4">Downloader</span>
+					YouTube Video/Audio <span className="underline decoration-blue-500 decoration-4">Downloader</span>
 				</h1>
 
 				{/* Description */}
