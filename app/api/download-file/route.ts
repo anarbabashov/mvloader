@@ -4,6 +4,7 @@ import { moveTempFileToDownloads, getTempFile } from '@/lib/temp-service'
 import { z } from 'zod'
 import path from 'path'
 import os from 'os'
+import fs from 'fs'
 
 const downloadSchema = z.object({
 	url: z.string().url(),
@@ -13,6 +14,53 @@ const downloadSchema = z.object({
 const moveToDownloadsSchema = z.object({
 	tempId: z.string(),
 })
+
+// GET: Serve file for browser download
+export async function GET(request: NextRequest) {
+	try {
+		const { searchParams } = new URL(request.url)
+		const tempId = searchParams.get('tempId')
+		
+		if (!tempId) {
+			return NextResponse.json(
+				{ error: 'Temp ID is required' },
+				{ status: 400 }
+			)
+		}
+
+		// Get temp file info
+		const tempFile = getTempFile(tempId)
+		if (!tempFile || !fs.existsSync(tempFile.filePath)) {
+			return NextResponse.json(
+				{ error: 'File not found or expired' },
+				{ status: 404 }
+			)
+		}
+
+		// Read the file
+		const fileBuffer = fs.readFileSync(tempFile.filePath)
+		
+		// Determine content type based on file extension
+		const ext = path.extname(tempFile.originalName).toLowerCase()
+		const contentType = ext === '.mp3' ? 'audio/mpeg' : 'video/mp4'
+		
+		// Return file as download
+		return new NextResponse(fileBuffer, {
+			status: 200,
+			headers: {
+				'Content-Type': contentType,
+				'Content-Disposition': `attachment; filename="${tempFile.originalName}"`,
+				'Content-Length': fileBuffer.length.toString(),
+			},
+		})
+	} catch (error) {
+		console.error('File serve error:', error)
+		return NextResponse.json(
+			{ error: 'Failed to serve file' },
+			{ status: 500 }
+		)
+	}
+}
 
 // POST: Download to temp folder
 export async function POST(request: NextRequest) {
@@ -31,6 +79,10 @@ export async function POST(request: NextRequest) {
 
 		// Generate unique download ID
 		const downloadId = Date.now().toString()
+		
+		// Set initial progress IMMEDIATELY to prevent "Download not found" errors
+		const { setInitialProgress } = await import('@/lib/download-service')
+		setInitialProgress(downloadId)
 		
 		// Start download to temp folder
 		try {

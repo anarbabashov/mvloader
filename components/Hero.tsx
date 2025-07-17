@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Music, Play, Youtube, AlertCircle, Loader2 } from "lucide-react"
 import { VideoPreview } from "./VideoPreview"
@@ -23,6 +23,14 @@ export function Hero() {
 	const [error, setError] = useState("")
 	const [isLoading, setIsLoading] = useState(false)
 	const [videoPreview, setVideoPreview] = useState<VideoPreviewData | null>(null)
+	const inputRef = useRef<HTMLInputElement>(null)
+
+	// Auto-focus input on component mount
+	useEffect(() => {
+		if (inputRef.current) {
+			inputRef.current.focus()
+		}
+	}, [])
 
 	// Validate YouTube URL
 	const validateYouTubeUrl = (url: string) => {
@@ -59,6 +67,13 @@ export function Hero() {
 		setUrl(e.target.value)
 		// Reset preview when URL changes
 		setVideoPreview(null)
+	}
+
+	// Add handler for Enter key press
+	const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === 'Enter' && isValid && !isLoading) {
+			handleStart()
+		}
 	}
 
 	const handleStart = async () => {
@@ -144,8 +159,10 @@ export function Hero() {
 								placeholder="Please paste the YouTube URL"
 								value={url}
 								onChange={handleUrlChange}
+								onKeyPress={handleKeyPress}
 								disabled={isLoading}
 								className="flex-1 px-6 py-4 text-base bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-none outline-none focus:ring-0 h-16 disabled:opacity-50 disabled:cursor-not-allowed rounded-l-2xl"
+								ref={inputRef}
 							/>
 
 							{/* Start Button */}
@@ -215,7 +232,7 @@ export function Hero() {
 								variant="outline"
 								className="text-gray-600 dark:text-gray-300"
 							>
-								Try Another Video
+								Return to Start
 							</Button>
 						</div>
 					</div>

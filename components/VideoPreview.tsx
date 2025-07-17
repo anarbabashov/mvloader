@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { Calendar, Eye, Clock, Download, Loader2 } from "lucide-react"
 import Image from "next/image"
 
@@ -34,34 +33,10 @@ interface VideoPreviewProps {
 }
 
 export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPreviewProps) {
-	const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'ready' | 'error'>('idle')
+	const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'ready' | 'error' | 'success'>('idle')
 	const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null)
 	const [currentDownloadId, setCurrentDownloadId] = useState<string | null>(null)
 	const [selectedFormat, setSelectedFormat] = useState<'MP3' | 'MP4' | null>(null)
-	const [animatedProgress, setAnimatedProgress] = useState(0)
-
-	// Animate progress for better UX
-	useEffect(() => {
-		if (downloadProgress) {
-			const targetProgress = downloadProgress.progress
-			
-			const animate = () => {
-				setAnimatedProgress(current => {
-					if (current < targetProgress) {
-						const increment = Math.min(3, targetProgress - current) // Animate at 3% per step
-						const newProgress = current + increment
-						if (newProgress < targetProgress) {
-							setTimeout(animate, 50) // Update every 50ms for smooth animation
-						}
-						return newProgress
-					}
-					return current
-				})
-			}
-			
-			animate()
-		}
-	}, [downloadProgress?.progress]) // Only depend on the progress value
 
 	// Poll for download progress
 	useEffect(() => {
@@ -78,8 +53,7 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 					setDownloadProgress(progress)
 					
 					if (progress.status === 'completed') {
-						// Add a small delay before showing ready state to let animation finish
-						setTimeout(() => setDownloadState('ready'), 500)
+						setDownloadState('ready')
 					} else if (progress.status === 'error') {
 						setDownloadState('error')
 						onError(progress.error || 'Download failed')
@@ -94,8 +68,8 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 			// Poll immediately first
 			pollProgress()
 			
-			// Then set up interval for more frequent polling
-			interval = setInterval(pollProgress, 200) // Reduced from 500ms to 200ms for faster updates
+			// Then set up interval for polling
+			interval = setInterval(pollProgress, 500)
 		}
 
 		return () => {
@@ -106,8 +80,6 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 	const handleFormatDownload = async (format: 'MP3' | 'MP4') => {
 		setSelectedFormat(format)
 		setDownloadState('downloading')
-		setAnimatedProgress(0) // Reset animated progress
-		// Set initial progress immediately to show the progress bar
 		setDownloadProgress({
 			downloadId: '',
 			progress: 0,
@@ -130,7 +102,6 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 
 			if (response.ok) {
 				setCurrentDownloadId(data.downloadId)
-				// Update progress with actual downloadId but keep at 0 to start animation
 				setDownloadProgress({
 					downloadId: data.downloadId,
 					progress: 0,
@@ -150,31 +121,27 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 		if (!downloadProgress?.tempId) return
 
 		try {
-			const response = await fetch('/api/download-file', {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					tempId: downloadProgress.tempId,
-				}),
-			})
+			// Create a download link that will trigger browser download
+			const downloadUrl = `/api/download-file?tempId=${downloadProgress.tempId}`
+			
+			// Create a temporary anchor element to trigger download
+			const link = document.createElement('a')
+			link.href = downloadUrl
+			link.style.display = 'none'
+			document.body.appendChild(link)
+			link.click()
+			document.body.removeChild(link)
 
-			const data = await response.json()
+			// Show success message briefly, then return to ready state for more downloads
+			setDownloadState('success')
+			
+			// After a brief success message, return to ready state to allow downloading again
+			setTimeout(() => {
+				setDownloadState('ready')
+			}, 2000)
 
-			if (response.ok) {
-				// Reset state and notify parent
-				setDownloadState('idle')
-				setDownloadProgress(null)
-				setCurrentDownloadId(null)
-				setSelectedFormat(null)
-				setAnimatedProgress(0)
-				onDownloadComplete()
-			} else {
-				onError(data.error || 'Failed to save file')
-			}
 		} catch (err) {
-			onError('Failed to save file')
+			onError('Failed to download file')
 		}
 	}
 
@@ -183,7 +150,7 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 		
 		switch (downloadProgress.status) {
 			case 'downloading':
-				return "Hang tight—we're baking!"
+				return "Downloading your file..."
 			case 'converting':
 				return "Converting to high quality..."
 			case 'completed':
@@ -224,31 +191,33 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 					</div>
 
 					{/* Video details */}
-					<div className="flex-1 min-w-0">
-						<h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+					<div className="flex-1 min-w-0 text-left">
+						<h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 line-clamp-2">
 							{preview.title}
 						</h2>
 						
+						{/* Channel name */}
+						<div className="mb-3">
+							<span className="text-base font-medium text-gray-700 dark:text-gray-200">
+								{preview.channelName}
+							</span>
+						</div>
+						
+						{/* Track details in column layout */}
 						<div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
 							<div className="flex items-center gap-2">
-								<span className="font-medium">{preview.channelName}</span>
+								<Eye className="w-4 h-4 text-gray-500" />
+								<span>{preview.viewCount}</span>
 							</div>
 							
-							<div className="flex items-center gap-4 flex-wrap">
-								<div className="flex items-center gap-1">
-									<Eye className="w-4 h-4" />
-									<span>{preview.viewCount}</span>
-								</div>
-								
-								<div className="flex items-center gap-1">
-									<Calendar className="w-4 h-4" />
-									<span>{preview.publishDate}</span>
-								</div>
-								
-								<div className="flex items-center gap-1">
-									<Clock className="w-4 h-4" />
-									<span>{preview.duration}</span>
-								</div>
+							<div className="flex items-center gap-2">
+								<Calendar className="w-4 h-4 text-gray-500" />
+								<span>{preview.publishDate}</span>
+							</div>
+							
+							<div className="flex items-center gap-2">
+								<Clock className="w-4 h-4 text-gray-500" />
+								<span>{preview.duration}</span>
 							</div>
 						</div>
 					</div>
@@ -276,13 +245,19 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 					</div>
 				)}
 
-				{downloadState === 'downloading' && downloadProgress && (
-					<div className="space-y-3">
-						<div className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
-							<span>{getStatusText()}</span>
-							<span>{Math.round(animatedProgress)}%</span>
+				{downloadState === 'downloading' && (
+					<div className="text-center space-y-4">
+						<div className="flex items-center justify-center">
+							<Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
 						</div>
-						<Progress value={animatedProgress} className="h-2" />
+						<div>
+							<p className="text-gray-700 dark:text-gray-300 font-medium">
+								{getStatusText()}
+							</p>
+							<p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+								Please wait while we prepare your {selectedFormat} file
+							</p>
+						</div>
 					</div>
 				)}
 
@@ -310,12 +285,29 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 								setDownloadProgress(null)
 								setCurrentDownloadId(null)
 								setSelectedFormat(null)
-								setAnimatedProgress(0)
 							}}
 							variant="outline"
 						>
 							Try Again
 						</Button>
+					</div>
+				)}
+
+				{downloadState === 'success' && (
+					<div className="text-center space-y-4">
+						<div className="flex items-center justify-center mb-3">
+							<div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-2">
+								<div className="w-6 h-6 text-green-600 dark:text-green-300">✓</div>
+							</div>
+						</div>
+						<div>
+							<p className="text-green-600 dark:text-green-400 font-semibold mb-1">
+								Download started successfully!
+							</p>
+							<p className="text-sm text-gray-600 dark:text-gray-300">
+								{selectedFormat} file is being downloaded to your browser. Returning to download options...
+							</p>
+						</div>
 					</div>
 				)}
 			</div>

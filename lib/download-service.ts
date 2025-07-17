@@ -43,13 +43,21 @@ export function getDownloadProgress(downloadId: string): DownloadProgress {
   return progress
 }
 
+// Set initial progress to prevent "Download not found" errors
+export function setInitialProgress(downloadId: string): void {
+  progressMap.set(downloadId, { 
+    downloadId, 
+    progress: 0, 
+    status: 'downloading' 
+  })
+}
+
 // Download to temp folder for preview mode
 export async function downloadToTemp(url: string, downloadId: string, format: 'MP3' | 'MP4'): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
-      // Set initial progress
-      progressMap.set(downloadId, { downloadId, progress: 0, status: 'downloading' })
-
+      // Initial progress is already set by setInitialProgress() before this function is called
+      
       const info = await ytdl.getInfo(url, {
         requestOptions: {
           headers: {
@@ -104,11 +112,28 @@ async function downloadAudioToTemp(url: string, downloadId: string, tempId: stri
         const percent = ffmpegAvailable 
           ? Math.round((downloaded / total) * 50) // 50% for download if converting
           : Math.round((downloaded / total) * 100) // 100% if no conversion
-        progressMap.set(downloadId, { downloadId, progress: percent, status: 'downloading', tempId })
+        
+        // Preserve existing progress entry and only update progress/status, keeping tempId
+        const existingProgress = progressMap.get(downloadId)
+        progressMap.set(downloadId, { 
+          ...existingProgress,
+          downloadId, 
+          progress: percent, 
+          status: 'downloading', 
+          tempId 
+        })
       })
 
       audioStream.on('error', (error) => {
-        progressMap.set(downloadId, { downloadId, progress: 0, status: 'error', error: error.message, tempId })
+        const existingProgress = progressMap.get(downloadId)
+        progressMap.set(downloadId, { 
+          ...existingProgress,
+          downloadId, 
+          progress: 0, 
+          status: 'error', 
+          error: error.message, 
+          tempId 
+        })
         reject(error)
       })
 
@@ -125,11 +150,20 @@ async function downloadAudioToTemp(url: string, downloadId: string, tempId: stri
             .format('mp3')
             .on('progress', (progress: { percent?: number }) => {
               const percent = Math.round(50 + (progress.percent || 0) * 0.5)
-              progressMap.set(downloadId, { downloadId, progress: percent, status: 'converting', tempId })
+              const existingProgress = progressMap.get(downloadId)
+              progressMap.set(downloadId, { 
+                ...existingProgress,
+                downloadId, 
+                progress: percent, 
+                status: 'converting', 
+                tempId 
+              })
             })
             .on('end', () => {
               fs.unlinkSync(tempAudioPath) // Remove temp audio file
+              const existingProgress = progressMap.get(downloadId)
               progressMap.set(downloadId, { 
+                ...existingProgress,
                 downloadId, 
                 progress: 100, 
                 status: 'completed', 
@@ -140,7 +174,9 @@ async function downloadAudioToTemp(url: string, downloadId: string, tempId: stri
             })
             .on('error', (error: Error) => {
               console.error('FFmpeg conversion error:', error)
+              const existingProgress = progressMap.get(downloadId)
               progressMap.set(downloadId, { 
+                ...existingProgress,
                 downloadId, 
                 progress: 0, 
                 status: 'error', 
@@ -152,7 +188,9 @@ async function downloadAudioToTemp(url: string, downloadId: string, tempId: stri
             .save(tempPath)
         } else {
           // No FFmpeg available
+          const existingProgress = progressMap.get(downloadId)
           progressMap.set(downloadId, { 
+            ...existingProgress,
             downloadId, 
             progress: 100, 
             status: 'completed', 
@@ -164,11 +202,21 @@ async function downloadAudioToTemp(url: string, downloadId: string, tempId: stri
       })
 
       writeStream.on('error', (error) => {
-        progressMap.set(downloadId, { downloadId, progress: 0, status: 'error', error: error.message, tempId })
+        const existingProgress = progressMap.get(downloadId)
+        progressMap.set(downloadId, { 
+          ...existingProgress,
+          downloadId, 
+          progress: 0, 
+          status: 'error', 
+          error: error.message, 
+          tempId 
+        })
         reject(error)
       })
     } catch (error) {
+      const existingProgress = progressMap.get(downloadId)
       progressMap.set(downloadId, { 
+        ...existingProgress,
         downloadId, 
         progress: 0, 
         status: 'error', 
@@ -195,11 +243,28 @@ async function downloadVideoToTemp(url: string, downloadId: string, tempId: stri
 
       videoStream.on('progress', (chunkLength, downloaded, total) => {
         const percent = Math.round((downloaded / total) * 100)
-        progressMap.set(downloadId, { downloadId, progress: percent, status: 'downloading', tempId })
+        
+        // Preserve existing progress entry and only update progress/status, keeping tempId
+        const existingProgress = progressMap.get(downloadId)
+        progressMap.set(downloadId, { 
+          ...existingProgress,
+          downloadId, 
+          progress: percent, 
+          status: 'downloading', 
+          tempId 
+        })
       })
 
       videoStream.on('error', (error) => {
-        progressMap.set(downloadId, { downloadId, progress: 0, status: 'error', error: error.message, tempId })
+        const existingProgress = progressMap.get(downloadId)
+        progressMap.set(downloadId, { 
+          ...existingProgress,
+          downloadId, 
+          progress: 0, 
+          status: 'error', 
+          error: error.message, 
+          tempId 
+        })
         reject(error)
       })
 
@@ -207,7 +272,9 @@ async function downloadVideoToTemp(url: string, downloadId: string, tempId: stri
       videoStream.pipe(writeStream)
 
       writeStream.on('finish', () => {
+        const existingProgress = progressMap.get(downloadId)
         progressMap.set(downloadId, { 
+          ...existingProgress,
           downloadId, 
           progress: 100, 
           status: 'completed', 
@@ -218,11 +285,21 @@ async function downloadVideoToTemp(url: string, downloadId: string, tempId: stri
       })
 
       writeStream.on('error', (error) => {
-        progressMap.set(downloadId, { downloadId, progress: 0, status: 'error', error: error.message, tempId })
+        const existingProgress = progressMap.get(downloadId)
+        progressMap.set(downloadId, { 
+          ...existingProgress,
+          downloadId, 
+          progress: 0, 
+          status: 'error', 
+          error: error.message, 
+          tempId 
+        })
         reject(error)
       })
     } catch (error) {
+      const existingProgress = progressMap.get(downloadId)
       progressMap.set(downloadId, { 
+        ...existingProgress,
         downloadId, 
         progress: 0, 
         status: 'error', 
