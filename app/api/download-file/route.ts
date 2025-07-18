@@ -84,23 +84,20 @@ export async function POST(request: NextRequest) {
 		const { setInitialProgress } = await import('@/lib/download-service')
 		setInitialProgress(downloadId)
 		
-		// Start download to temp folder
-		try {
-			const tempId = await downloadToTemp(url, downloadId, format)
-			
-			return NextResponse.json({ 
-				success: true, 
-				downloadId,
-				tempId,
-				message: 'Download to temp started' 
-			})
-		} catch (error) {
+		// Add a tiny delay to ensure progress is committed before responding
+		await new Promise(resolve => setTimeout(resolve, 10))
+		
+		// Start download to temp folder (don't await - let it run in background)
+		downloadToTemp(url, downloadId, format).catch((error) => {
 			console.error('Download to temp failed:', error)
-			return NextResponse.json(
-				{ error: 'Download failed' },
-				{ status: 500 }
-			)
-		}
+		})
+		
+		return NextResponse.json({ 
+			success: true, 
+			downloadId,
+			tempId: downloadId, // Use downloadId as tempId initially
+			message: 'Download to temp started' 
+		})
 	} catch (error) {
 		console.error('Download API error:', error)
 		return NextResponse.json(

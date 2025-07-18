@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Calendar, Eye, Clock, Download, Loader2 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Calendar, Eye, Clock, Download } from "lucide-react"
 import Image from "next/image"
 
 interface VideoPreview {
@@ -37,12 +38,18 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 	const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null)
 	const [currentDownloadId, setCurrentDownloadId] = useState<string | null>(null)
 	const [selectedFormat, setSelectedFormat] = useState<'MP3' | 'MP4' | null>(null)
+	
+	// Use useRef to track retry state without triggering useEffect re-runs
+	const hasRetriedRef = useRef(false)
+	const currentFormatRef = useRef<'MP3' | 'MP4' | null>(null)
 
 	// Poll for download progress
 	useEffect(() => {
 		let interval: NodeJS.Timeout
 
 		if (currentDownloadId && downloadState === 'downloading') {
+			console.log('Starting polling for downloadId:', currentDownloadId)
+			
 			// Start polling immediately
 			const pollProgress = async () => {
 				try {
@@ -54,13 +61,30 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 					
 					if (progress.status === 'completed') {
 						setDownloadState('ready')
+						hasRetriedRef.current = false // Reset retry flag on success
 					} else if (progress.status === 'error') {
+						// Check if this is a "Download not found" error and we haven't retried yet
+						if (progress.error === 'Download not found' && !hasRetriedRef.current && currentFormatRef.current) {
+							console.log('Download not found, retrying automatically...')
+							hasRetriedRef.current = true
+							// Clear current interval before retry
+							if (interval) {
+								clearInterval(interval)
+							}
+							// Restart the download automatically without showing error
+							await retryDownload(currentFormatRef.current)
+							return
+						}
+						
+						// Show error for any other error type or if retry already attempted
 						setDownloadState('error')
+						hasRetriedRef.current = false // Reset retry flag
 						onError(progress.error || 'Download failed')
 					}
 				} catch (err) {
 					console.error('Error fetching progress:', err)
 					setDownloadState('error')
+					hasRetriedRef.current = false // Reset retry flag
 					onError('Failed to get download progress')
 				}
 			}
@@ -73,13 +97,56 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 		}
 
 		return () => {
-			if (interval) clearInterval(interval)
+			if (interval) {
+				console.log('Clearing polling interval for downloadId:', currentDownloadId)
+				clearInterval(interval)
+			}
 		}
 	}, [currentDownloadId, downloadState, onError])
 
+	const retryDownload = async (format: 'MP3' | 'MP4') => {
+		console.log('Retrying download for format:', format)
+		
+		try {
+			const response = await fetch('/api/download-file', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					url: `https://www.youtube.com/watch?v=${preview.videoId}`,
+					format,
+				}),
+			})
+
+			const data = await response.json()
+
+			if (response.ok) {
+				setCurrentDownloadId(data.downloadId)
+				setDownloadProgress({
+					downloadId: data.downloadId,
+					progress: 0,
+					status: 'downloading',
+				})
+			} else {
+				// If retry fails, show the error
+				setDownloadState('error')
+				hasRetriedRef.current = false
+				onError(data.error || 'Failed to start download')
+			}
+		} catch (err) {
+			// If retry fails, show the error
+			setDownloadState('error')
+			hasRetriedRef.current = false
+			onError('Failed to start download')
+		}
+	}
+
 	const handleFormatDownload = async (format: 'MP3' | 'MP4') => {
 		setSelectedFormat(format)
+		currentFormatRef.current = format // Store format for retry logic
 		setDownloadState('downloading')
+		hasRetriedRef.current = false // Reset retry flag for new download
 		setDownloadProgress({
 			downloadId: '',
 			progress: 0,
@@ -146,19 +213,22 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 	}
 
 	const getStatusText = () => {
-		if (!downloadProgress) return ""
+		if (!downloadProgress) return "Initializing..."
 		
 		switch (downloadProgress.status) {
 			case 'downloading':
-				return "Downloading your file..."
+				if (downloadProgress.progress === 0) {
+					return "Starting download..."
+				}
+				return "Downloading..."
 			case 'converting':
-				return "Converting to high quality..."
+				return "Converting..."
 			case 'completed':
 				return "Ready to download!"
 			case 'error':
 				return "Download failed"
 			default:
-				return ""
+				return "Processing..."
 		}
 	}
 
@@ -247,13 +317,31 @@ export function VideoPreview({ preview, onDownloadComplete, onError }: VideoPrev
 
 				{downloadState === 'downloading' && (
 					<div className="text-center space-y-4">
-						<div className="flex items-center justify-center">
-							<Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+						<div className="space-y-3">
+							{/* Progress Bar */}
+							<div className="w-full max-w-md mx-auto space-y-2">
+								<Progress 
+									value={downloadProgress?.progress || 0} 
+									className="h-3 bg-gray-200 dark:bg-gray-700 transition-all duration-300"
+								/>
+								{/* Progress bar with animated background for converting state */}
+								{downloadProgress?.status === 'converting' && (
+									<div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+								)}
+							</div>
+							
+							{/* Progress Text and Percentage */}
+							<div className="flex items-center justify-between max-w-md mx-auto text-sm">
+								<span className="text-gray-600 dark:text-gray-400">
+									{getStatusText()}
+								</span>
+								<span className="font-medium text-blue-600 dark:text-blue-400">
+									{downloadProgress?.progress || 0}%
+								</span>
+							</div>
 						</div>
+						
 						<div>
-							<p className="text-gray-700 dark:text-gray-300 font-medium">
-								{getStatusText()}
-							</p>
 							<p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								Please wait while we prepare your {selectedFormat} file
 							</p>

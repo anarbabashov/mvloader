@@ -15,6 +15,28 @@ try {
   console.warn('FFmpeg not available, will download audio in original format')
 }
 
+// Filename formatting function for better readability
+function formatFilename(title: string): string {
+  return title
+    // First, handle common patterns
+    .replace(/\s*_\s*/g, ' - ')  // Replace underscores with hyphens (with spaces)
+    .replace(/\s*\|\s*/g, ' - ') // Replace pipes with hyphens
+    .replace(/\s*-\s*/g, ' - ')  // Normalize existing hyphens with proper spacing
+    // Handle parentheses and brackets - convert underscores inside them
+    .replace(/\(\s*([^)]*?)\s*\)/g, (match, content) => {
+      return `(${content.replace(/_/g, ' ').trim()})`
+    })
+    .replace(/\[\s*([^\]]*?)\s*\]/g, (match, content) => {
+      return `[${content.replace(/_/g, ' ').trim()}]`
+    })
+    // Remove or replace problematic characters for filenames
+    .replace(/[<>:"/\\|?*]/g, '')  // Remove invalid filename characters
+    .replace(/['']/g, "'")         // Normalize apostrophes
+    .replace(/[""]/g, '"')         // Normalize quotes
+    .replace(/\s+/g, ' ')          // Collapse multiple spaces
+    .trim()
+}
+
 // Get user's Downloads folder
 const getDownloadsPath = () => {
   const homeDir = os.homedir()
@@ -66,7 +88,7 @@ export async function downloadToTemp(url: string, downloadId: string, format: 'M
         }
       })
       
-      const title = info.videoDetails.title.replace(/[^a-zA-Z0-9\s]/g, '_').trim()
+      const title = formatFilename(info.videoDetails.title)
       const fileName = format === 'MP3' ? `${title}.mp3` : `${title}.mp4`
       
       // Create temp file using downloadId as tempId to maintain consistency
@@ -325,7 +347,7 @@ export async function downloadAudio(url: string, downloadId: string): Promise<st
         }
       })
       
-      const title = info.videoDetails.title.replace(/[^a-zA-Z0-9\s]/g, '_').trim()
+      const title = formatFilename(info.videoDetails.title)
       
       // If FFmpeg is available, use conversion; otherwise download directly as MP3-named file
       const finalAudioPath = path.join(getDownloadsPath(), `${title}.mp3`)
@@ -432,7 +454,7 @@ export async function downloadVideo(url: string, downloadId: string): Promise<st
         }
       })
       
-      const title = info.videoDetails.title.replace(/[^a-zA-Z0-9\s]/g, '_').trim()
+      const title = formatFilename(info.videoDetails.title)
       const finalVideoPath = path.join(getDownloadsPath(), `${title}.mp4`)
 
       const videoStream = ytdl(url, { 
