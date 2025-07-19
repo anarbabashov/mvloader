@@ -29,7 +29,7 @@ A modern, fast, and user-friendly YouTube music/video downloader built with Next
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/mvloader.git
+git clone git@github.com:anarbabashov/mvloader.git
 cd mvloader
 ```
 
