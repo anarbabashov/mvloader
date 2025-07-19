@@ -4,6 +4,29 @@ import path from 'path'
 import os from 'os'
 import { createTempFile } from './temp-service'
 
+// Helper function to create ytdl agent with optional user IP
+function createYtdlAgent(userIP?: string) {
+	const agentOptions: any = {
+		headers: {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+		}
+	}
+
+	// If we have a user IP and it's not localhost, try to bind to it
+	// Avoid binding to localhost IPs as they cause EINVAL errors
+	if (userIP && userIP !== '127.0.0.1' && userIP !== '::1' && userIP !== 'localhost') {
+		agentOptions.localAddress = userIP
+		console.log('Using user IP for ytdl agent localAddress:', userIP)
+	} else if (userIP) {
+		// For localhost or invalid IPs, just add headers without binding
+		agentOptions.headers['X-Forwarded-For'] = userIP
+		agentOptions.headers['X-Real-IP'] = userIP
+		console.log('Using user IP in headers only (localhost detected):', userIP)
+	}
+
+	return ytdl.createAgent(undefined, agentOptions)
+}
+
 // Try to set up FFmpeg, but continue without it if it fails
 let ffmpegAvailable = false
 try {
@@ -75,18 +98,13 @@ export function setInitialProgress(downloadId: string): void {
 }
 
 // Download to temp folder for preview mode
-export async function downloadToTemp(url: string, downloadId: string, format: 'MP3' | 'MP4'): Promise<string> {
+export async function downloadToTemp(url: string, downloadId: string, format: 'MP3' | 'MP4', userIP?: string): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
       // Initial progress is already set by setInitialProgress() before this function is called
       
-      const info = await ytdl.getInfo(url, {
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        }
-      })
+      const agent = createYtdlAgent(userIP)
+      const info = await ytdl.getInfo(url, { agent })
       
       const title = formatFilename(info.videoDetails.title)
       const fileName = format === 'MP3' ? `${title}.mp3` : `${title}.mp4`
@@ -95,9 +113,9 @@ export async function downloadToTemp(url: string, downloadId: string, format: 'M
       const { tempId, tempPath } = createTempFile(fileName, downloadId)
 
       if (format === 'MP3') {
-        await downloadAudioToTemp(url, downloadId, tempId, tempPath, title)
+        await downloadAudioToTemp(url, downloadId, tempId, tempPath, title, userIP)
       } else {
-        await downloadVideoToTemp(url, downloadId, tempId, tempPath, title)
+        await downloadVideoToTemp(url, downloadId, tempId, tempPath, title, userIP)
       }
 
       resolve(tempId)
@@ -113,21 +131,18 @@ export async function downloadToTemp(url: string, downloadId: string, format: 'M
   })
 }
 
-async function downloadAudioToTemp(url: string, downloadId: string, tempId: string, tempPath: string, title: string): Promise<void> {
+async function downloadAudioToTemp(url: string, downloadId: string, tempId: string, tempPath: string, title: string, userIP?: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
     try {
       const tempAudioPath = ffmpegAvailable 
         ? path.join(path.dirname(tempPath), `temp_${path.basename(tempPath, '.mp3')}.m4a`)
         : tempPath
 
+      const agent = createYtdlAgent(userIP)
       const audioStream = ytdl(url, { 
         quality: 'highestaudio',
         filter: 'audioonly',
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        }
+        agent
       })
 
       audioStream.on('progress', (chunkLength, downloaded, total) => {
@@ -250,17 +265,14 @@ async function downloadAudioToTemp(url: string, downloadId: string, tempId: stri
   })
 }
 
-async function downloadVideoToTemp(url: string, downloadId: string, tempId: string, tempPath: string, title: string): Promise<void> {
+async function downloadVideoToTemp(url: string, downloadId: string, tempId: string, tempPath: string, title: string, userIP?: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
     try {
+      const agent = createYtdlAgent(userIP)
       const videoStream = ytdl(url, { 
         quality: 'highest',
         filter: 'videoandaudio',
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        }
+        agent
       })
 
       videoStream.on('progress', (chunkLength, downloaded, total) => {
@@ -333,19 +345,14 @@ async function downloadVideoToTemp(url: string, downloadId: string, tempId: stri
   })
 }
 
-export async function downloadAudio(url: string, downloadId: string): Promise<string> {
+export async function downloadAudio(url: string, downloadId: string, userIP?: string): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
       // Set initial progress IMMEDIATELY
       progressMap.set(downloadId, { downloadId, progress: 0, status: 'downloading' })
 
-      const info = await ytdl.getInfo(url, {
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        }
-      })
+      const agent = createYtdlAgent(userIP)
+      const info = await ytdl.getInfo(url, { agent })
       
       const title = formatFilename(info.videoDetails.title)
       
@@ -358,11 +365,7 @@ export async function downloadAudio(url: string, downloadId: string): Promise<st
       const audioStream = ytdl(url, { 
         quality: 'highestaudio',
         filter: 'audioonly',
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        }
+        agent
       })
 
       audioStream.on('progress', (chunkLength, downloaded, total) => {
@@ -441,18 +444,13 @@ export async function downloadAudio(url: string, downloadId: string): Promise<st
   })
 }
 
-export async function downloadVideo(url: string, downloadId: string): Promise<string> {
+export async function downloadVideo(url: string, downloadId: string, userIP?: string): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
       progressMap.set(downloadId, { downloadId, progress: 0, status: 'downloading' })
 
-      const info = await ytdl.getInfo(url, {
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        }
-      })
+      const agent = createYtdlAgent(userIP)
+      const info = await ytdl.getInfo(url, { agent })
       
       const title = formatFilename(info.videoDetails.title)
       const finalVideoPath = path.join(getDownloadsPath(), `${title}.mp4`)
@@ -460,11 +458,7 @@ export async function downloadVideo(url: string, downloadId: string): Promise<st
       const videoStream = ytdl(url, { 
         quality: 'highest',
         filter: 'videoandaudio',
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        }
+        agent
       })
 
       videoStream.on('progress', (chunkLength, downloaded, total) => {

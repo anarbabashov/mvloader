@@ -15,6 +15,21 @@ const moveToDownloadsSchema = z.object({
 	tempId: z.string(),
 })
 
+// Extract user IP from request headers
+function getUserIP(request: NextRequest): string | undefined {
+	const forwardedFor = request.headers.get('x-forwarded-for')
+	const realIP = request.headers.get('x-real-ip')
+	const cfConnectingIP = request.headers.get('cf-connecting-ip')
+	const vercelForwardedFor = request.headers.get('x-vercel-forwarded-for')
+
+	if (forwardedFor) {
+		const ips = forwardedFor.split(',').map(ip => ip.trim())
+		return ips[0]
+	}
+
+	return realIP || cfConnectingIP || vercelForwardedFor || undefined
+}
+
 // GET: Serve file for browser download
 export async function GET(request: NextRequest) {
 	try {
@@ -90,6 +105,10 @@ export async function POST(request: NextRequest) {
 			)
 		}
 
+		// Get user's IP address
+		const userIP = getUserIP(request)
+		console.log('User IP for temp download:', userIP)
+
 		// Generate unique download ID
 		const downloadId = Date.now().toString()
 		
@@ -100,8 +119,8 @@ export async function POST(request: NextRequest) {
 		// Add a tiny delay to ensure progress is committed before responding
 		await new Promise(resolve => setTimeout(resolve, 10))
 		
-		// Start download to temp folder (don't await - let it run in background)
-		downloadToTemp(url, downloadId, format).catch((error) => {
+		// Start download to temp folder with user IP (don't await - let it run in background)
+		downloadToTemp(url, downloadId, format, userIP).catch((error) => {
 			console.error('Download to temp failed:', error)
 		})
 		
