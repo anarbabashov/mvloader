@@ -45,11 +45,6 @@ pnpm dev
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Building for Production
-
-```bash
-pnpm build
-pnpm start
 ```
 
 ## Tech Stack
@@ -98,9 +93,9 @@ mvloader/
    - Dark/Light theme toggle
    - Mobile-friendly navigation
 
-3. **Internationalization**
-   - Support for 26+ languages
-   - Easy language switching
+## Note:
+
+Currently, the application performs high-quality downloads successfully only on the local machine. Due to YouTube’s strict bot detection mechanisms, I’m working on implementing a solution to bypass these restrictions.
 
 ## Contributing
 
