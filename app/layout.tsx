@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   title: "MVLoader - YouTube High-quality audio and video downloader.",
   description:
     "Downloader YouTube music and videos free online tool.",
-  keywords: "YouTube to MP3, YouTube to MP4, audio converter, MP3 downloader, online tool"
+  keywords: "YouTube to MP3, YouTube to MP4, audio converter, MP3 downloader, online tool",
+  icons: {
+    icon: '/icon',
+    apple: '/apple-icon',
+  },
 }
 
 export default function RootLayout({
