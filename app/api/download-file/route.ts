@@ -44,12 +44,25 @@ export async function GET(request: NextRequest) {
 		const ext = path.extname(tempFile.originalName).toLowerCase()
 		const contentType = ext === '.mp3' ? 'audio/mpeg' : 'video/mp4'
 		
+		// Sanitize filename for Content-Disposition header
+		// Replace problematic Unicode characters and ensure ASCII compatibility
+		const sanitizedFilename = tempFile.originalName
+			.replace(/[""]/g, '"')           // Replace smart quotes
+			.replace(/['']/g, "'")           // Replace smart apostrophes  
+			.replace(/[—–]/g, '-')           // Replace em/en dashes with hyphen
+			.replace(/[^\x20-\x7E]/g, '_')   // Replace any non-ASCII chars with underscore
+			.replace(/[<>:"/\\|?*]/g, '_')   // Replace invalid filename chars
+		
+		// Create Content-Disposition header with both ASCII fallback and UTF-8 encoded filename
+		const encodedFilename = encodeURIComponent(tempFile.originalName)
+		const contentDisposition = `attachment; filename="${sanitizedFilename}"; filename*=UTF-8''${encodedFilename}`
+		
 		// Return file as download
 		return new NextResponse(fileBuffer, {
 			status: 200,
 			headers: {
 				'Content-Type': contentType,
-				'Content-Disposition': `attachment; filename="${tempFile.originalName}"`,
+				'Content-Disposition': contentDisposition,
 				'Content-Length': fileBuffer.length.toString(),
 			},
 		})
