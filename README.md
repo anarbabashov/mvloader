@@ -1,4 +1,4 @@
-# mvloader - YouTube Music/Video Downloader
+# MVLoader - YouTube Music/Video Downloader
 
 A modern, fast, and user-friendly YouTube music/video downloader built with Next.js. Convert and download YouTube videos to MP3 or MP4 format with just a few clicks.
 
