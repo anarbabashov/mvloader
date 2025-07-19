@@ -9,14 +9,18 @@ A modern, fast, and user-friendly YouTube music/video downloader built with Next
 
 ## Features
 
-- 🎵 Convert YouTube videos to MP3 or MP4
+- 🎵 Convert YouTube videos to High-quality MP3 or MP4
 - 🚀 Fast conversion and download speeds
 - 💻 No software installation required
-- 🌐 Support for multiple languages
 - 🌙 Dark/Light theme support
 - 📱 Fully responsive design
 - 🔒 Secure and private - no personal information required
-- 💯 100% free to use
+- 💯 100% Open Source and FREE to use!
+
+## Author Note:
+
+Currently, the application performs high-quality downloads successfully only on the local machine. Due to YouTube’s strict bot detection mechanisms, I’m working on implementing a solution to bypass these restrictions.
+
 
 ## Getting Started
 
@@ -61,24 +65,6 @@ pnpm dev
 - **Theme**: next-themes
 - **Validation**: Zod
 
-## Project Structure
-
-```
-mvloader/
-├── app/                # Next.js app directory
-│   ├── about/         # About page
-│   ├── faq/           # FAQ page
-│   ├── features/      # Features page
-│   └── layout.tsx     # Root layout
-├── components/        # React components
-│   ├── ui/           # UI components
-│   └── ...           # Feature components
-├── hooks/            # Custom React hooks
-├── lib/              # Utility functions
-├── public/           # Static assets
-└── styles/           # Global styles
-```
-
 ## Features in Detail
 
 1. **Video Download**
@@ -92,10 +78,6 @@ mvloader/
    - Responsive layout
    - Dark/Light theme toggle
    - Mobile-friendly navigation
-
-## Note:
-
-Currently, the application performs high-quality downloads successfully only on the local machine. Due to YouTube’s strict bot detection mechanisms, I’m working on implementing a solution to bypass these restrictions.
 
 ## Contributing
 
