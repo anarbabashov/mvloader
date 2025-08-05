@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ytdl from '@distube/ytdl-core'
 import { z } from 'zod'
+import { getRandomHeaders, createYtdlAgentWithProxy } from '@/lib/youtube-bypass'
 
 const previewSchema = z.object({
 	url: z.string().url(),
@@ -52,94 +53,50 @@ export async function POST(request: NextRequest) {
 		const userIP = getUserIP(request)
 		console.log('User IP:', userIP)
 
-		// Try different approaches to bypass YouTube blocking
+		// Enhanced bypass strategies
 		let info: any = null
 		let lastError: Error | null = null
 
-		// Strategy 1: Try with user IP as localAddress (if available)
-		if (userIP && userIP !== '127.0.0.1' && userIP !== '::1') {
-			try {
-				console.log('Attempting strategy 1: Using user IP as localAddress:', userIP)
-				const agentOptions: any = {
-					localAddress: userIP,
-					headers: {
-						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-						'X-Forwarded-For': userIP,
-						'X-Real-IP': userIP
-					}
-				}
-				const agent = ytdl.createAgent(undefined, agentOptions)
-				info = await ytdl.getInfo(url, { agent })
-				console.log('Strategy 1 succeeded')
-			} catch (error: any) {
-				console.log('Strategy 1 failed:', error?.message || error)
-				lastError = error as Error
-			}
-		}
+		// Get proxy configuration if available
+		const proxyConfig = process.env.PROXY_HOST ? {
+			host: process.env.PROXY_HOST,
+			port: parseInt(process.env.PROXY_PORT || '8080'),
+			auth: process.env.PROXY_USERNAME ? {
+				username: process.env.PROXY_USERNAME,
+				password: process.env.PROXY_PASSWORD
+			} : undefined
+		} : undefined
 
-		// Strategy 2: Try with just user IP headers (no localAddress)
-		if (!info && userIP) {
-			try {
-				console.log('Attempting strategy 2: Using user IP headers without localAddress')
-				const agentOptions: any = {
-					headers: {
-						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-						'X-Forwarded-For': userIP,
-						'X-Real-IP': userIP,
-						'CF-Connecting-IP': userIP
-					}
-				}
-				const agent = ytdl.createAgent(undefined, agentOptions)
-				info = await ytdl.getInfo(url, { agent })
-				console.log('Strategy 2 succeeded')
-			} catch (error: any) {
-				console.log('Strategy 2 failed:', error?.message || error)
-				lastError = error as Error
+		const strategies = [
+			{
+				name: 'Randomized headers with user IP',
+				config: createYtdlAgentWithProxy(userIP)
+			},
+			{
+				name: 'Proxy with randomized headers',
+				config: createYtdlAgentWithProxy(userIP, proxyConfig)
+			},
+			{
+				name: 'Different user agent rotation',
+				config: createYtdlAgentWithProxy(userIP)
+			},
+			{
+				name: 'Basic fallback',
+				config: { headers: getRandomHeaders() }
 			}
-		}
+		]
 
-		// Strategy 3: Try with different User-Agent and cookies
-		if (!info) {
+		for (const strategy of strategies) {
+			if (info) break
+			
 			try {
-				console.log('Attempting strategy 3: Different User-Agent and cookie attempt')
-				const agentOptions: any = {
-					headers: {
-						'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15',
-						'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-						'Accept-Language': 'en-US,en;q=0.5',
-						'Accept-Encoding': 'gzip, deflate',
-						'DNT': '1',
-						'Connection': 'keep-alive',
-						'Upgrade-Insecure-Requests': '1'
-					}
-				}
-				if (userIP) {
-					agentOptions.headers['X-Forwarded-For'] = userIP
-					agentOptions.headers['X-Real-IP'] = userIP
-				}
-				const agent = ytdl.createAgent(undefined, agentOptions)
+				console.log(`Attempting: ${strategy.name}`)
+				const agent = ytdl.createAgent(undefined, strategy.config)
 				info = await ytdl.getInfo(url, { agent })
-				console.log('Strategy 3 succeeded')
+				console.log(`${strategy.name} succeeded`)
+				break
 			} catch (error: any) {
-				console.log('Strategy 3 failed:', error?.message || error)
-				lastError = error as Error
-			}
-		}
-
-		// Strategy 4: Fallback to basic approach without any special options
-		if (!info) {
-			try {
-				console.log('Attempting strategy 4: Basic fallback approach')
-				info = await ytdl.getInfo(url, {
-					requestOptions: {
-						headers: {
-							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-						}
-					}
-				})
-				console.log('Strategy 4 succeeded')
-			} catch (error: any) {
-				console.log('Strategy 4 failed:', error?.message || error)
+				console.log(`${strategy.name} failed:`, error?.message?.substring(0, 100))
 				lastError = error as Error
 			}
 		}
