@@ -47,6 +47,8 @@
     "embla-carousel-react": "latest",
     "ffmpeg-static": "^5.2.0",
     "fluent-ffmpeg": "^2.1.3",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
     "input-otp": "latest",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",

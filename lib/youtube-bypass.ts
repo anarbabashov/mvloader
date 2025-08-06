@@ -55,13 +55,29 @@ export const createYtdlAgentWithProxy = (userIP?: string, proxyConfig?: ProxyCon
   if (proxyConfig) {
     console.log(`🔄 Configuring proxy: ${proxyConfig.host}:${proxyConfig.port}`)
     
-    // For ytdl-core, we need to use the undici agent or HTTP agent with proxy support
-    // Temporarily disable proxy to avoid 500 errors and focus on basic functionality first
-    console.log('⚠️ Proxy temporarily disabled for testing - will implement proper agent')
+    try {
+      // Import proxy agents
+      const { HttpProxyAgent } = require('http-proxy-agent')
+      const { HttpsProxyAgent } = require('https-proxy-agent')
+      
+      // Create proxy URL
+      const proxyUrl = proxyConfig.auth 
+        ? `http://${proxyConfig.auth.username}:${proxyConfig.auth.password}@${proxyConfig.host}:${proxyConfig.port}`
+        : `http://${proxyConfig.host}:${proxyConfig.port}`
+      
+      // Create HTTP and HTTPS agents with proxy support
+      agentOptions.httpAgent = new HttpProxyAgent(proxyUrl)
+      agentOptions.httpsAgent = new HttpsProxyAgent(proxyUrl)
+      
+      console.log(`✅ Proxy agents configured for: ${proxyConfig.host}:${proxyConfig.port}`)
+    } catch (error) {
+      console.error('❌ Failed to configure proxy agents:', error)
+      console.log('🔄 Falling back to direct connection')
+    }
   }
   
-  // Always bind to user IP if available and not localhost
-  if (userIP && userIP !== '127.0.0.1' && userIP !== '::1' && userIP !== 'localhost') {
+  // Always bind to user IP if available and not localhost (only if no proxy)
+  if (userIP && userIP !== '127.0.0.1' && userIP !== '::1' && userIP !== 'localhost' && !proxyConfig) {
     agentOptions.localAddress = userIP
     console.log('🌐 Using user IP binding:', userIP)
   } else if (userIP) {

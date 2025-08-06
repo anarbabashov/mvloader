@@ -12,14 +12,23 @@ function createYtdlAgent(userIP?: string) {
 	const proxyConfig = process.env.PROXY_HOST ? {
 		host: process.env.PROXY_HOST,
 		port: parseInt(process.env.PROXY_PORT || '3128'),
-		auth: process.env.PROXY_USERNAME ? {
+		auth: (process.env.PROXY_USERNAME && process.env.PROXY_PASSWORD) ? {
 			username: process.env.PROXY_USERNAME,
-			password: process.env.PROXY_PASSWORD || ''
+			password: process.env.PROXY_PASSWORD
 		} : undefined
 	} : undefined
 
+	console.log('🔧 Download service - Proxy config loaded:', {
+		hasProxy: !!proxyConfig,
+		host: proxyConfig?.host,
+		port: proxyConfig?.port,
+		userIP: userIP
+	})
+
 	// Use the enhanced proxy-aware agent creation
 	const agentOptions = createYtdlAgentWithProxy(userIP, proxyConfig)
+	
+	console.log('🔧 Download service - Agent options:', JSON.stringify(agentOptions, null, 2))
 	
 	return ytdl.createAgent(undefined, agentOptions)
 }
