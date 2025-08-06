@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { downloadVideo, downloadAudio } from '@/lib/download-service'
 import { z } from 'zod'
+import { checkRateLimit } from '@/lib/proxy-health'
 
 const downloadSchema = z.object({
   url: z.string().url(),
@@ -27,6 +28,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('Download request received:', body)
     
+    // Check rate limiting
+    const rateLimitCheck = checkRateLimit()
+    if (!rateLimitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded', 
+          timeUntilReset: rateLimitCheck.timeUntilReset 
+        },
+        { status: 429 }
+      )
+    }
+    
     const { url, format } = downloadSchema.parse(body)
 
     // Validate YouTube URL
@@ -40,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's IP address
     const userIP = getUserIP(request)
-    console.log('User IP for download:', userIP)
+    console.log('🔽 Download request from IP:', userIP, 'Format:', format, 'URL:', url.substring(0, 50) + '...')
 
     // Generate unique download ID
     const downloadId = Date.now().toString()

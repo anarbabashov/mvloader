@@ -38,13 +38,28 @@ export const getRandomHeaders = (userIP?: string) => {
   return baseHeaders
 }
 
-export const createYtdlAgentWithProxy = (userIP?: string, proxyConfig?: any) => {
+interface ProxyConfig {
+  host: string
+  port: number
+  auth?: {
+    username: string
+    password: string
+  }
+}
+
+export const createYtdlAgentWithProxy = (userIP?: string, proxyConfig?: ProxyConfig) => {
   const headers = getRandomHeaders(userIP)
   
   const agentOptions: any = { headers }
   
   if (proxyConfig) {
-    agentOptions.proxy = proxyConfig
+    // HTTP proxy configuration for ytdl-core
+    const proxyUrl = proxyConfig.auth 
+      ? `http://${proxyConfig.auth.username}:${proxyConfig.auth.password}@${proxyConfig.host}:${proxyConfig.port}`
+      : `http://${proxyConfig.host}:${proxyConfig.port}`
+    
+    agentOptions.proxy = proxyUrl
+    console.log(`Using proxy: ${proxyConfig.host}:${proxyConfig.port}`)
   }
   
   // Only bind to user IP if it's not localhost and no proxy is used
@@ -53,4 +68,32 @@ export const createYtdlAgentWithProxy = (userIP?: string, proxyConfig?: any) => 
   }
   
   return agentOptions
+}
+
+// Test proxy connectivity
+export const testProxyConnection = async (proxyConfig: ProxyConfig): Promise<boolean> => {
+  try {
+    const proxyUrl = proxyConfig.auth 
+      ? `http://${proxyConfig.auth.username}:${proxyConfig.auth.password}@${proxyConfig.host}:${proxyConfig.port}`
+      : `http://${proxyConfig.host}:${proxyConfig.port}`
+    
+    // Simple HTTP request through proxy to test connectivity
+    const response = await fetch('https://httpbin.org/ip', {
+      method: 'GET',
+      // @ts-ignore - proxy option exists but not in types
+      proxy: proxyUrl,
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      console.log('Proxy test successful. External IP:', data.origin)
+      return true
+    }
+    
+    return false
+  } catch (error) {
+    console.error('Proxy test failed:', error)
+    return false
+  }
 }

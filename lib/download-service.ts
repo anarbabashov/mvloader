@@ -4,26 +4,23 @@ import path from 'path'
 import os from 'os'
 import { createTempFile } from './temp-service'
 
-// Helper function to create ytdl agent with optional user IP
+import { createYtdlAgentWithProxy } from './youtube-bypass'
+
+// Helper function to create ytdl agent with optional user IP and proxy
 function createYtdlAgent(userIP?: string) {
-	const agentOptions: any = {
-		headers: {
-			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-		}
-	}
+	// Get proxy configuration from environment
+	const proxyConfig = process.env.PROXY_HOST ? {
+		host: process.env.PROXY_HOST,
+		port: parseInt(process.env.PROXY_PORT || '3128'),
+		auth: process.env.PROXY_USERNAME ? {
+			username: process.env.PROXY_USERNAME,
+			password: process.env.PROXY_PASSWORD || ''
+		} : undefined
+	} : undefined
 
-	// If we have a user IP and it's not localhost, try to bind to it
-	// Avoid binding to localhost IPs as they cause EINVAL errors
-	if (userIP && userIP !== '127.0.0.1' && userIP !== '::1' && userIP !== 'localhost') {
-		agentOptions.localAddress = userIP
-		console.log('Using user IP for ytdl agent localAddress:', userIP)
-	} else if (userIP) {
-		// For localhost or invalid IPs, just add headers without binding
-		agentOptions.headers['X-Forwarded-For'] = userIP
-		agentOptions.headers['X-Real-IP'] = userIP
-		console.log('Using user IP in headers only (localhost detected):', userIP)
-	}
-
+	// Use the enhanced proxy-aware agent creation
+	const agentOptions = createYtdlAgentWithProxy(userIP, proxyConfig)
+	
 	return ytdl.createAgent(undefined, agentOptions)
 }
 

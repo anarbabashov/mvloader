@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import ytdl from '@distube/ytdl-core'
 import { z } from 'zod'
 import { getRandomHeaders, createYtdlAgentWithProxy } from '@/lib/youtube-bypass'
+import { checkRateLimit, initializeProxyHealth } from '@/lib/proxy-health'
 
 const previewSchema = z.object({
 	url: z.string().url(),
@@ -40,6 +41,18 @@ export async function POST(request: NextRequest) {
 		const body = await request.json()
 		const { url } = previewSchema.parse(body)
 
+		// Check rate limiting
+		const rateLimitCheck = checkRateLimit()
+		if (!rateLimitCheck.allowed) {
+			return NextResponse.json(
+				{ 
+					error: 'Rate limit exceeded', 
+					timeUntilReset: rateLimitCheck.timeUntilReset 
+				},
+				{ status: 429 }
+			)
+		}
+
 		// Validate YouTube URL
 		const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/)|youtu\.be\/)/i
 		if (!youtubeRegex.test(url)) {
@@ -51,7 +64,7 @@ export async function POST(request: NextRequest) {
 
 		// Get user's IP address
 		const userIP = getUserIP(request)
-		console.log('User IP:', userIP)
+		console.log('Preview request from IP:', userIP, 'for URL:', url)
 
 		// Enhanced bypass strategies
 		let info: any = null
@@ -60,12 +73,17 @@ export async function POST(request: NextRequest) {
 		// Get proxy configuration if available
 		const proxyConfig = process.env.PROXY_HOST ? {
 			host: process.env.PROXY_HOST,
-			port: parseInt(process.env.PROXY_PORT || '8080'),
+			port: parseInt(process.env.PROXY_PORT || '3128'),
 			auth: process.env.PROXY_USERNAME ? {
 				username: process.env.PROXY_USERNAME,
-				password: process.env.PROXY_PASSWORD
+				password: process.env.PROXY_PASSWORD || ''
 			} : undefined
 		} : undefined
+
+		// Initialize proxy health monitoring if proxy is configured
+		if (proxyConfig) {
+			initializeProxyHealth(proxyConfig)
+		}
 
 		const strategies = [
 			{
@@ -90,13 +108,24 @@ export async function POST(request: NextRequest) {
 			if (info) break
 			
 			try {
-				console.log(`Attempting: ${strategy.name}`)
+				console.log(`Attempting strategy: ${strategy.name}`)
 				const agent = ytdl.createAgent(undefined, strategy.config)
+				
+				// Add timing for performance monitoring
+				const startTime = Date.now()
 				info = await ytdl.getInfo(url, { agent })
-				console.log(`${strategy.name} succeeded`)
+				const duration = Date.now() - startTime
+				
+				console.log(`✅ ${strategy.name} succeeded in ${duration}ms`)
+				
+				// Log proxy usage for verification
+				if (strategy.name.includes('Proxy') && proxyConfig) {
+					console.log(`🔄 Request routed through proxy: ${proxyConfig.host}:${proxyConfig.port}`)
+				}
+				
 				break
 			} catch (error: any) {
-				console.log(`${strategy.name} failed:`, error?.message?.substring(0, 100))
+				console.log(`❌ ${strategy.name} failed:`, error?.message?.substring(0, 100))
 				lastError = error as Error
 			}
 		}

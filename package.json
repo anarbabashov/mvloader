@@ -43,6 +43,7 @@
     "clsx": "^2.1.1",
     "cmdk": "latest",
     "date-fns": "4.1.0",
+    "dotenv": "^17.2.1",
     "embla-carousel-react": "latest",
     "ffmpeg-static": "^5.2.0",
     "fluent-ffmpeg": "^2.1.3",
