@@ -8,29 +8,57 @@ import { createYtdlAgentWithProxy } from './youtube-bypass'
 
 // Helper function to create ytdl agent with optional user IP and proxy
 function createYtdlAgent(userIP?: string) {
-	// Get proxy configuration from environment
-	const proxyConfig = process.env.PROXY_HOST ? {
+	// Check if running in development (localhost)
+	const isDevelopment = process.env.NODE_ENV === 'development' || 
+	                     process.env.VERCEL !== '1' ||
+	                     userIP === '127.0.0.1' || 
+	                     userIP === '::1' || 
+	                     userIP === 'localhost'
+
+	// Only use proxy in production, not localhost
+	const proxyConfig = (!isDevelopment && process.env.PROXY_HOST) ? {
 		host: process.env.PROXY_HOST,
 		port: parseInt(process.env.PROXY_PORT || '3128'),
-		auth: (process.env.PROXY_USERNAME && process.env.PROXY_PASSWORD) ? {
+		auth: process.env.PROXY_USERNAME ? {
 			username: process.env.PROXY_USERNAME,
-			password: process.env.PROXY_PASSWORD
+			password: process.env.PROXY_PASSWORD || ''
 		} : undefined
 	} : undefined
 
-	console.log('🔧 Download service - Proxy config loaded:', {
+	console.log('🔧 Download service - Environment check:', {
+		isDevelopment: isDevelopment,
+		userIP: userIP,
 		hasProxy: !!proxyConfig,
 		host: proxyConfig?.host,
-		port: proxyConfig?.port,
-		userIP: userIP
+		port: proxyConfig?.port
 	})
 
-	// Use the enhanced proxy-aware agent creation
-	const agentOptions = createYtdlAgentWithProxy(userIP, proxyConfig)
+	// Try multiple strategies to bypass YouTube blocks
+	let agent = null
 	
-	console.log('🔧 Download service - Agent options:', JSON.stringify(agentOptions, null, 2))
-	
-	return ytdl.createAgent(undefined, agentOptions)
+	if (proxyConfig) {
+		// Strategy 1: Try with proxy
+		console.log('🔄 Strategy 1: Using proxy')
+		const agentOptions = createYtdlAgentWithProxy(userIP, proxyConfig)
+		agent = ytdl.createAgent(undefined, agentOptions)
+	} else {
+		// Strategy 2: Direct connection with IP binding
+		console.log('🔄 Strategy 2: Direct connection')
+		const agentOptions = createYtdlAgentWithProxy(userIP, undefined)
+		agent = ytdl.createAgent(undefined, agentOptions)
+	}
+
+	return agent
+}
+
+// Create a clean agent for localhost without any proxy or special headers
+function createCleanAgent() {
+	console.log('🧹 Creating clean agent for localhost')
+	return ytdl.createAgent(undefined, {
+		headers: {
+			'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+		}
+	})
 }
 
 // Try to set up FFmpeg, but continue without it if it fails
@@ -109,8 +137,63 @@ export async function downloadToTemp(url: string, downloadId: string, format: 'M
     try {
       // Initial progress is already set by setInitialProgress() before this function is called
       
-      const agent = createYtdlAgent(userIP)
-      const info = await ytdl.getInfo(url, { agent })
+      // Check if running in development (localhost)
+      const isDevelopment = process.env.NODE_ENV === 'development' || 
+                           process.env.VERCEL !== '1' ||
+                           userIP === '127.0.0.1' || 
+                           userIP === '::1' || 
+                           userIP === 'localhost'
+
+      console.log('🔧 Download temp - Environment check:', {
+        isDevelopment: isDevelopment,
+        userIP: userIP,
+        NODE_ENV: process.env.NODE_ENV,
+        VERCEL: process.env.VERCEL
+      })
+      
+      // Try multiple strategies
+      let info = null
+      let lastError = null
+      let successfulStrategy = null
+      
+      const strategies = isDevelopment ? [
+        { name: 'Direct with clean headers (localhost)', useProxy: false, clean: true },
+        { name: 'Direct with user IP binding', useProxy: false, clean: false },
+        { name: 'Direct with different user agent', useProxy: false, clean: false }
+      ] : [
+        { name: 'Proxy with user headers', useProxy: true, clean: false },
+        { name: 'Direct with rotating headers', useProxy: false, clean: false }
+      ]
+      
+      for (const strategy of strategies) {
+        if (info) break
+        
+        try {
+          console.log(`🔄 Trying strategy: ${strategy.name}`)
+          
+          let agent
+          if (strategy.clean) {
+            agent = createCleanAgent()
+          } else if (strategy.useProxy) {
+            agent = createYtdlAgent(userIP)
+          } else {
+            agent = createYtdlAgent()
+          }
+          
+          info = await ytdl.getInfo(url, { agent })
+          
+          console.log(`✅ Success with: ${strategy.name}`)
+          successfulStrategy = strategy
+          break
+        } catch (error) {
+          console.log(`❌ Failed with: ${strategy.name} - ${error.message}`)
+          lastError = error
+        }
+      }
+      
+      if (!info || !successfulStrategy) {
+        throw lastError || new Error('All download strategies failed')
+      }
       
       const title = formatFilename(info.videoDetails.title)
       const fileName = format === 'MP3' ? `${title}.mp3` : `${title}.mp4`
@@ -118,10 +201,21 @@ export async function downloadToTemp(url: string, downloadId: string, format: 'M
       // Create temp file using downloadId as tempId to maintain consistency
       const { tempId, tempPath } = createTempFile(fileName, downloadId)
 
-      if (format === 'MP3') {
-        await downloadAudioToTemp(url, downloadId, tempId, tempPath, title, userIP)
+      // Use the same successful agent for downloading
+      let successfulAgent
+      if (successfulStrategy.clean) {
+        successfulAgent = createCleanAgent()
+      } else if (successfulStrategy.useProxy) {
+        successfulAgent = createYtdlAgent(userIP)
       } else {
-        await downloadVideoToTemp(url, downloadId, tempId, tempPath, title, userIP)
+        successfulAgent = createYtdlAgent()
+      }
+      console.log(`🔧 Using successful strategy agent: ${successfulStrategy.name}`)
+
+      if (format === 'MP3') {
+        await downloadAudioToTemp(url, downloadId, tempId, tempPath, title, userIP, successfulAgent)
+      } else {
+        await downloadVideoToTemp(url, downloadId, tempId, tempPath, title, userIP, successfulAgent)
       }
 
       resolve(tempId)
@@ -137,18 +231,20 @@ export async function downloadToTemp(url: string, downloadId: string, format: 'M
   })
 }
 
-async function downloadAudioToTemp(url: string, downloadId: string, tempId: string, tempPath: string, title: string, userIP?: string): Promise<void> {
+async function downloadAudioToTemp(url: string, downloadId: string, tempId: string, tempPath: string, title: string, userIP?: string, agent?: any): Promise<void> {
   return new Promise(async (resolve, reject) => {
     try {
       const tempAudioPath = ffmpegAvailable 
         ? path.join(path.dirname(tempPath), `temp_${path.basename(tempPath, '.mp3')}.m4a`)
         : tempPath
 
-      const agent = createYtdlAgent(userIP)
+      const streamingAgent = agent || createYtdlAgent(userIP)
+      console.log('🎵 Using agent for audio streaming:', !!streamingAgent)
+      
       const audioStream = ytdl(url, { 
         quality: 'highestaudio',
         filter: 'audioonly',
-        agent
+        agent: streamingAgent
       })
 
       audioStream.on('progress', (chunkLength, downloaded, total) => {

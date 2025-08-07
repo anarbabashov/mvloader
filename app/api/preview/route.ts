@@ -70,8 +70,15 @@ export async function POST(request: NextRequest) {
 		let info: any = null
 		let lastError: Error | null = null
 
-		// Get proxy configuration if available
-		const proxyConfig = process.env.PROXY_HOST ? {
+		// Check if running in development (localhost)
+		const isDevelopment = process.env.NODE_ENV === 'development' || 
+		                     process.env.VERCEL !== '1' ||
+		                     userIP === '127.0.0.1' || 
+		                     userIP === '::1' || 
+		                     userIP === 'localhost'
+
+		// Only use proxy in production, not localhost
+		const proxyConfig = (!isDevelopment && process.env.PROXY_HOST) ? {
 			host: process.env.PROXY_HOST,
 			port: parseInt(process.env.PROXY_PORT || '3128'),
 			auth: process.env.PROXY_USERNAME ? {
@@ -79,6 +86,13 @@ export async function POST(request: NextRequest) {
 				password: process.env.PROXY_PASSWORD || ''
 			} : undefined
 		} : undefined
+
+		console.log('🔧 Preview API - Environment check:', {
+			isDevelopment: isDevelopment,
+			userIP: userIP,
+			hasProxy: !!proxyConfig,
+			host: proxyConfig?.host
+		})
 
 		// Initialize proxy health monitoring if proxy is configured
 		if (proxyConfig) {
